@@ -1,0 +1,5 @@
+<Project>
+  <Target Name="ValidateYmm4Sdk" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(YMM4DirPath)' == '' or !Exists('$(YMM4DirPath)YukkuriMovieMaker.dll')" Text="Set YMM4DirPath or YMM4_DIR to the YMM4 .NET 10 SDK directory." />
+  </Target>
+</Project>

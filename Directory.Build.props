@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <YMM4DirPath Condition="'$(YMM4DirPath)' == ''">$(YMM4_DIR)</YMM4DirPath>
+    <YMM4DirPath Condition="'$(YMM4DirPath)' != ''">$([MSBuild]::EnsureTrailingSlash('$(YMM4DirPath)'))</YMM4DirPath>
+  </PropertyGroup>
+</Project>

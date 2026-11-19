@@ -1,0 +1,161 @@
+name: Build and release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build, test, and package
+    if: github.event_name == 'workflow_dispatch' || !github.event.deleted
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      YMM4_VERSION: '4.57.0.0'
+      YMM4_SHA256: fbc2da90bd78347a7b54eff030cb2d671c74e7223a420fe4e9cbfa852d503f7e
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the release tag
+        if: github.event_name == 'push'
+        run: |
+          $project = [xml](Get-Content -Raw 'src/YMM4PlaybackTimingPlugin/YMM4PlaybackTimingPlugin.csproj')
+          $version = $project.Project.PropertyGroup.Version
+          if ($env:GITHUB_REF_NAME -cne "v$version") {
+            throw "Tag '$env:GITHUB_REF_NAME' must match the project version 'v$version'."
+          }
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Download and verify YMM4 Lite
+        run: |
+          $version = $env:YMM4_VERSION
+          $fileName = "YukkuriMovieMaker_v${version}_Lite.zip"
+          $archive = Join-Path $env:RUNNER_TEMP $fileName
+          $url = "https://github.com/manju-summoner/YukkuriMovieMaker4/releases/download/v$version/$fileName"
+          curl.exe --fail --location --silent --show-error --retry 3 --connect-timeout 15 --max-time 300 --output $archive $url
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
+          if ($hash -ne $env:YMM4_SHA256) {
+            throw "YMM4 Lite ZIP SHA-256 mismatch. Expected $env:YMM4_SHA256, got $hash."
+          }
+
+          $destination = Join-Path $env:RUNNER_TEMP 'ymm4-lite'
+          Expand-Archive -LiteralPath $archive -DestinationPath $destination
+          $assemblies = @(Get-ChildItem -LiteralPath $destination -Recurse -File -Filter 'YukkuriMovieMaker.dll')
+          if ($assemblies.Count -ne 1 -or $assemblies[0].VersionInfo.FileVersion -ne $version) {
+            throw "Expected one YukkuriMovieMaker.dll of version $version in the verified ZIP."
+          }
+          "YMM4_DIR=$($assemblies[0].DirectoryName)" >> $env:GITHUB_ENV
+
+      - name: Build the solution
+        run: dotnet build YMM4PlaybackTimingPlugin.slnx -c Release
+
+      - name: Run the plugin tests
+        run: dotnet run --project tests/YMM4PlaybackTimingPlugin.Tests -c Release --no-build
+
+      - name: Package and verify the .ymme
+        id: package
+        run: |
+          $outputRoot = Join-Path $env:RUNNER_TEMP 'release-package'
+          $package = ./tools/create-ymme.ps1 -OutputRoot $outputRoot | ConvertFrom-Json
+          $expectedEntries = @('LICENSE', 'README.md', 'THIRD-PARTY-NOTICES.txt', 'YMM4PlaybackTimingPlugin.dll')
+          $archive = [IO.Compression.ZipFile]::OpenRead($package.Archive)
+          try {
+            if (Compare-Object $expectedEntries $archive.Entries.FullName -CaseSensitive) {
+              throw 'The .ymme contains unexpected files or is missing required files.'
+            }
+          } finally {
+            $archive.Dispose()
+          }
+
+          $verifiedPackage = Join-Path $env:RUNNER_TEMP 'verified-package'
+          [IO.Compression.ZipFile]::ExtractToDirectory($package.Archive, $verifiedPackage)
+          $dll = Join-Path $verifiedPackage 'YMM4PlaybackTimingPlugin.dll'
+          dotnet run --project tests/YMM4PlaybackTimingPlugin.Loading.Tests -c Release --no-build -- embedded $dll $env:YMM4_DIR
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          "archive=$($package.Archive)" >> $env:GITHUB_OUTPUT
+
+      - name: Store the verified .ymme
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ymm4-playback-timing-${{ github.run_attempt }}
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: Create or verify the draft release
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: draft-release-${{ github.ref }}
+    steps:
+      - name: Download the verified .ymme
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          merge-multiple: true
+          path: release
+
+      - name: Attach the .ymme to a draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $fileName = 'YMM4PlaybackTimingPlugin.ymme'
+          $asset = Join-Path 'release' $fileName
+          if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) {
+            throw 'The verified .ymme is missing.'
+          }
+
+          $releaseResponse = gh release view $tag --json isDraft,assets 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            if (($releaseResponse -join "`n").Trim() -ne 'release not found') {
+              throw "Could not check release ${tag}: $releaseResponse"
+            }
+            gh release create $tag $asset --draft --verify-tag --generate-notes
+            exit $LASTEXITCODE
+          }
+
+          $release = $releaseResponse | ConvertFrom-Json
+          if (-not $release.isDraft) {
+            throw "Release $tag is already published."
+          }
+          if ($fileName -cnotin $release.assets.name) {
+            gh release upload $tag $asset
+            exit $LASTEXITCODE
+          }
+
+          $existingAsset = Join-Path $env:RUNNER_TEMP 'draft-release.ymme'
+          gh release download $tag --pattern $fileName --output $existingAsset
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ((Get-FileHash -LiteralPath $existingAsset).Hash -ne (Get-FileHash -LiteralPath $asset).Hash) {
+            throw "Draft release $tag already contains a different $fileName."
+          }
+          Write-Host "Draft release $tag already contains the verified .ymme."

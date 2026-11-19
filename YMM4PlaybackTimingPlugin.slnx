@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/YMM4PlaybackTimingPlugin/YMM4PlaybackTimingPlugin.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/YMM4PlaybackTimingPlugin.Tests/YMM4PlaybackTimingPlugin.Tests.csproj" />
+    <Project Path="tests/YMM4PlaybackTimingPlugin.Loading.Tests/YMM4PlaybackTimingPlugin.Loading.Tests.csproj" />
+  </Folder>
+</Solution>
