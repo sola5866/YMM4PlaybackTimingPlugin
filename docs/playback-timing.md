@@ -45,13 +45,3 @@ flowchart TD
 | ソースの交換・破棄、プレーヤーの破棄 | 対応する候補を失効させる。セッションを終了するときは実行中の待機が抜けてからタイマーを解放する。 |
 
 一時停止時に確定位置を引き継げなかった場合など、クロックを継続できないと判断した場合は位置の補間と追加待機を止め、YMM4の位置に戻ります。[PlaybackTimingClockHooks.cs](../src/YMM4PlaybackTimingPlugin/Integration/PlaybackTimingClockHooks.cs)・[PlaybackTimingClockHooks.Audio.cs](../src/YMM4PlaybackTimingPlugin/Integration/PlaybackTimingClockHooks.Audio.cs)
-
-## YMM4の再生ループを使った試験
-
-[Releaseビルド](README.md#ビルドと梱包)のあと、`warm-long` でYMM4の再生ループを事前に動かし、パッチ登録後の長時間再生を確認します。
-
-```powershell
-dotnet run --project tests/YMM4PlaybackTimingPlugin.Tests -c Release --no-build -- --native-loop warm-long
-```
-
-再生ループの試験は非表示のウィンドウハンドル（HWND）、小さな画像、実デバイスを使わない音声バックエンドを使います。確認対象はこの構成での再生ループとパッチの動作です。実際の音声出力やモニターの表示FPSを確認するには別途実機での測定が必要です。[IndependentNativeLoopTests.cs](../tests/YMM4PlaybackTimingPlugin.Tests/IndependentNativeLoopTests.cs)
