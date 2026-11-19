@@ -1,4 +1,4 @@
-# YMM4再生タイミング調整プラグイン 開発者向けドキュメント
+# YMM4再生タイミング調整プラグイン
 
 YMM4再生タイミング調整プラグインは、タイムラインのプレビュー再生を対象に、音声位置に基づく再生クロックを補間し、フレームの描画が早く終わったときに提示前の待機を追加します。YMM4が行うフレーム選択、描画、提示の流れにHarmonyで処理を追加します。導入後は自動で有効になります。動作確認済みのYMM4は `4.57.0.0` です。
 
@@ -37,13 +37,6 @@ pwsh -NoProfile -File tools/create-ymme.ps1 -OutputRoot 'artifacts/release-check
 Lib.Harmonyを更新するときは、埋め込むDLLに含まれる依存コードを調べ、リポジトリ直下の [THIRD-PARTY-NOTICES.txt](../THIRD-PARTY-NOTICES.txt) と照合します。ビルド出力の通知がこのファイルと一致すると梱包できます。
 
 YMM4への導入と動作確認は、梱包後に[YMM4実機での確認](plugin-lifecycle.md#ymm4実機での確認)の手順で行います。
-
-## GitHub Actionsでのリリース
-
-[Build and release](../.github/workflows/release.yml) は、公式のYMM4 Lite 4.57.0.0のZIPを取得し、固定したSHA-256と照合してからビルドに使います。Releaseビルド、基本の自動試験、梱包、`.ymme` 内のDLLの読み込み試験を実行します。
-
-- ワークフローを既定ブランチに置くと、Actions画面から手動実行できます。検証済みの `.ymme` は実行結果のArtifactsから取得できます。
-- プロジェクトの `Version` と一致するタグ（例 `v1.0.0`）をpushすると、検証済みの `.ymme` を添付した下書きリリースを作成します。[YMM4実機での確認](plugin-lifecycle.md#ymm4実機での確認)を済ませてから、GitHubのReleases画面で公開します。
 
 ## 自動試験の選び方
 
