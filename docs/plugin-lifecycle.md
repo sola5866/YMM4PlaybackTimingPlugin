@@ -26,29 +26,3 @@ YMM4が `YMM4PlaybackTimingPlugin` を生成すると、コンストラクター
 3. この登録処理が追加したパッチを逆順に解除します。Harmonyのパッチ一覧で自分のパッチが消えたことを確認してから、登録時の管理状態を解放します。
 
 ワーカーの異常終了やパッチ解除の失敗などで片付けを確認できない場合は、終了の `Task` が失敗し、登録を管理するオブジェクトを保持します。[PlaybackTimingRegistrationOwner.cs](../src/YMM4PlaybackTimingPlugin/Composition/PlaybackTimingRegistrationOwner.cs)・[PreviewPlaybackSession.cs](../src/YMM4PlaybackTimingPlugin/Playback/PreviewPlaybackSession.cs)
-
-## 起動・終了と配布DLLの試験
-
-[Releaseビルド](README.md#ビルドと梱包)のあと、公開エントリーポイントからの自動起動、二重登録の防止、終了を確認します。この試験を含む `YMM4PlaybackTimingPlugin.Tests` はHarmonyを直接参照します。
-
-```powershell
-dotnet run --project tests/YMM4PlaybackTimingPlugin.Tests -c Release --no-build -- --plugin-startup
-```
-
-梱包済みのDLLについては、製品とHarmonyへのビルド時参照を持たない専用ホストで、型の列挙、自動起動、終了を確認します。[梱包](README.md#ビルドと梱包)を済ませて、`package/` 内のDLLの絶対パスを指定します。
-
-```powershell
-dotnet run --project tests/YMM4PlaybackTimingPlugin.Loading.Tests -c Release --no-build -- embedded '生成package内のYMM4PlaybackTimingPlugin.dllの絶対path' $env:YMM4_DIR
-```
-
-ホストの引数は `mode 製品DLL YMM4フォルダー [追加DLL]` です。内蔵Harmonyの解決を確認できるよう、ホストの出力先と製品DLLのフォルダーには `0Harmony.dll` がない状態で実行します。外部Harmonyを渡す試験では、別フォルダーのDLLを指定します。
-
-| モード | 確認する内容 | 追加DLL |
-| --- | --- | --- |
-| `embedded` | 内蔵Harmonyによる起動と終了 | 不要 |
-| `parallel` | 並行して読み込んでも同じHarmonyの実体が使われること | 不要 |
-| `external-first` | 同版の外部Harmonyを先に読み込んだ場合の共有 | Harmony 2.4.2のDLL |
-| `embedded-first` | 内蔵Harmonyを先に読み込んだ場合の共有 | Harmony 2.4.2のDLL |
-| `native-loop` | 内蔵Harmonyを使った再生ループの `warm-long` | ビルド済みの `YMM4PlaybackTimingPlugin.Tests.dll` |
-
-再生ループ試験の環境は[YMM4の再生ループを使った試験](playback-timing.md#ymm4の再生ループを使った試験)、各モードの実装は [YMM4PlaybackTimingPlugin.Loading.Tests の Program.cs](../tests/YMM4PlaybackTimingPlugin.Loading.Tests/Program.cs) にあります。
