@@ -33,14 +33,3 @@ YMM4の「ツール」から「プレビュー再生診断」を開きます。�
 **プレビュー全体のサイズ**は、YMM4のプレビュー用ウィンドウハンドルからクライアント領域を物理ピクセル単位で取得します。**映像部分のサイズ**は、描画スレッドで取得した `DrawImage` 直前の変換とDPIを使って映像の四隅を変換し、描画バッファとクライアント領域の比で換算して領域内に収めた値です。ほかのウィンドウが手前に重なっても算出値は同じです。パネルは描画スレッドが記録した値を読みます。[PreviewGeometry.cs](../src/YMM4PlaybackTimingPlugin/Diagnostics/PreviewGeometry.cs)
 
 プレビューが複数のモニターにまたがる場合は、最も大きく重なるモニターをWindows APIで選びます。複製表示などで表示先を一意に特定できない場合は、その状態をパネルに表示します。色形式とビット深度はWindowsが報告する値で、SDR・SDR ACM・HDRの分類には新しい表示構成APIを使います。旧APIしか使えない場合は、取得できた色形式とビット深度を表示し、モードは「取得できません」と表示します。[WindowsPreviewDisplay.cs](../src/YMM4PlaybackTimingPlugin/Diagnostics/WindowsPreviewDisplay.cs)
-
-## 計測とUIの試験
-
-[Releaseビルド](README.md#ビルドと梱包)のあと、`--native-loop diagnostics` でYMM4の描画・提示結果を個別に観測し、診断の集計値と照合します。`--diagnostics-ui` では、標準UI部品の使用、470 DIPと320 DIPでの配置、物理ピクセル単位の領域、モニター情報の取得を確認します。UI試験は画面を表示しない試験ウィンドウを使い、指定先に確認用PNGを保存します。
-
-```powershell
-dotnet run --project tests/YMM4PlaybackTimingPlugin.Tests -c Release --no-build -- --native-loop diagnostics
-dotnet run --project tests/YMM4PlaybackTimingPlugin.Tests -c Release --no-build -- --diagnostics-ui artifacts/debug-panel-ui
-```
-
-診断用フックの登録に失敗したときに確認する挙動は[接続失敗時の挙動](plugin-lifecycle.md#接続失敗時の挙動)にあります。
