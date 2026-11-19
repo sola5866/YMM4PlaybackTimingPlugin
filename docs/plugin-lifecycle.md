@@ -2,12 +2,6 @@
 
 YMM4が `YMM4PlaybackTimingPlugin` を生成すると、コンストラクターが再生タイミング調整を初期化します。診断パネルは、同じDLLにある `PlaybackDiagnosticsPlugin` がYMM4のツールとして公開します。パネルを開く操作と再生タイミング調整の起動は独立しています。[YMM4PlaybackTimingPlugin.cs](../src/YMM4PlaybackTimingPlugin/YMM4PlaybackTimingPlugin.cs)・[PlaybackDiagnosticsPlugin.cs](../src/YMM4PlaybackTimingPlugin/Diagnostics/PlaybackDiagnosticsPlugin.cs)
 
-## YMM4での発見と内蔵Harmony
-
-YMM4はプラグインを発見するため、コンストラクターの実行より先にアセンブリ内の型を列挙します。モジュール初期化前に型を列挙できるよう、型のフィールドやコンパイラーが生成する型のインターフェースからHarmonyの即時解決を要求する形を避けています。たとえば `PatchSpec` は `HarmonyPatchType` を整数のフィールドに格納し、Transpilerは命令のリストを組み立てて返します。[PlaybackTimingPatchRegistration.cs](../src/YMM4PlaybackTimingPlugin/Integration/PlaybackTimingPatchRegistration.cs)・[PreviewDiagnosticsHooks.cs](../src/YMM4PlaybackTimingPlugin/Integration/PreviewDiagnosticsHooks.cs)
-
-製品DLLにはHarmony 2.4.2の `0Harmony.dll` を埋め込んでいます。モジュール初期化時に製品と同じ `AssemblyLoadContext` へ依存関係の解決処理を登録し、`0Harmony` の解決が必要になったときにリソースからメモリへ読み込みます。同じ版がそのコンテキストにすでに読み込まれていれば、その実体が使われます。製品のプラグインDLLは単体で配布し、YMM4 SDKのDLLはホストから参照します。表示名は製品DLL内のリソースから読み込み、日本語の環境では日本語名、それ以外では英語名を表示します。[EmbeddedHarmony.cs](../src/YMM4PlaybackTimingPlugin/Composition/EmbeddedHarmony.cs)・[YMM4PlaybackTimingPlugin.csproj](../src/YMM4PlaybackTimingPlugin/YMM4PlaybackTimingPlugin.csproj)
-
 ## パッチ登録と有効化
 
 1. `PlaybackTimingStartup` は初回の初期化で `PlaybackTimingRegistrationOwner` を作成します。登録を管理するこのオブジェクトは、コールバックの状態と、自分が登録したパッチを保持します。
@@ -58,7 +52,3 @@ dotnet run --project tests/YMM4PlaybackTimingPlugin.Loading.Tests -c Release --n
 | `native-loop` | 内蔵Harmonyを使った再生ループの `warm-long` | ビルド済みの `YMM4PlaybackTimingPlugin.Tests.dll` |
 
 再生ループ試験の環境は[YMM4の再生ループを使った試験](playback-timing.md#ymm4の再生ループを使った試験)、各モードの実装は [YMM4PlaybackTimingPlugin.Loading.Tests の Program.cs](../tests/YMM4PlaybackTimingPlugin.Loading.Tests/Program.cs) にあります。
-
-## YMM4実機での確認
-
-配布前に、YMM4標準インストーラーを使って `YMM4PlaybackTimingPlugin.ymme` の新規導入と既存バージョンからの更新を確認します。YMM4がプラグインを発見して自動起動すること、プレビューの再生・停止とYMM4の終了ができることを確認します。他のプラグインとの併用を対象とする場合は、その組み合わせでも確認します。第三者ライブラリの権利情報は [THIRD-PARTY-NOTICES.txt](../THIRD-PARTY-NOTICES.txt) にあります。
